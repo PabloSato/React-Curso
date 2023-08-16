@@ -73,29 +73,47 @@ function Header() {
 }
 
 function Menu() {
+  const pizzas = pizzaData;
+  const numPizzas = pizzas.length > 0;
   return (
     <main className='menu'>
       <h2>Our Menu</h2>
-      <Pizza
-        name='Pizza Prosciutto'
-        ingredients='Tomato, mozarella, ham, aragula, and burrata cheese'
-        photoName='prosciutto.jpg'
-        price={10}
-      />
+
+      {/* Vamos a usar ReactFragment para poder tener dos elementos react */}
+      {numPizzas ? (
+        <>
+          <p>
+            Authentic Italian cuisine. 6 creative dishes to choose from. All
+            from our stone oven, all organic, all delicious.
+          </p>
+          <ul className='pizzas'>
+            {pizzas.map((pizza) => (
+              <Pizza pizzaObj={pizza} key={pizza.name} />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p>We're still working on our menu. Please come back later</p>
+      )}
     </main>
   );
 }
 
-function Pizza(props) {
+// Podemos destructurar e objeto props
+function Pizza({ pizzaObj }) {
+  // Si tenemos a true el campo soldOut, devolvemos null y no pintamos
+  // if (pizzaObj.soldOut) return null;
+
   return (
-    <div>
-      <img src={`pizzas/${props.photoName}`} alt={props.name} />
+    // Podemos añadir clases CSS con el ternario
+    <li className={`pizza ${pizzaObj.soldOut ? 'sold-out' : ''}`}>
+      <img src={pizzaObj.photoName} alt={pizzaObj.name} />
       <div>
-        <h3>{props.name}</h3>
-        <p>{props.ingredients}</p>
-        <span>{props.price}€</span>
+        <h3>{pizzaObj.name}</h3>
+        <p>{pizzaObj.ingredients}</p>
+        <span>{pizzaObj.soldOut ? 'SOLD OUT' : pizzaObj.price + '€'}</span>
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -104,16 +122,29 @@ function Footer() {
   const openHour = 12;
   const closeHour = 22;
   const isOpen = hour >= openHour && hour <= closeHour;
-  console.log(isOpen);
 
-  //   if (hour >= openHour && hour <= closeHour) alert("We're currently open!");
-  //   else alert("Sorry, we're closed!");
+  // si isOpen es true, se renderiza lo que está al otro lado del '&&'
   return (
     <footer className='footer'>
-      {new Date().toLocaleTimeString()} We're currently open
+      {isOpen ? (
+        <Order closeHour={closeHour} />
+      ) : (
+        <p>
+          We're happy to welcome you between {openHour}:00 and {closeHour}:00
+        </p>
+      )}
     </footer>
   );
   //return React.createElement('footer', null, "We're currently open");
+}
+
+function Order({ closeHour }) {
+  return (
+    <div className='order'>
+      <p>We're open until {closeHour}:00. Come visit us or order online.</p>
+      <button className='btn'>Order</button>
+    </div>
+  );
 }
 
 // React v18
