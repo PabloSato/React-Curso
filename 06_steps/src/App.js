@@ -43,25 +43,15 @@ function Steps() {
             <div className={`${step >= 3 ? 'active' : ''}`}>3</div>
           </div>
 
-          <p className='message'>
-            Step {step}: {messages[step - 1]}
-          </p>
+          <StepMessage step={step}>{messages[step - 1]}</StepMessage>
 
           <div className='buttons'>
-            <Button
-              textColor='#fff'
-              bgColor='#7950f2'
-              onClick={handlePrevious}
-              text='Previous'
-              emoji='👈'
-            />
-            <Button
-              textColor='#fff'
-              bgColor='#7950f2'
-              onClick={handleNext}
-              text='Next'
-              emoji='👉'
-            />
+            <Button textColor='#fff' bgColor='#7950f2' onClick={handlePrevious}>
+              <span>👈</span>Previous
+            </Button>
+            <Button textColor='#fff' bgColor='#7950f2' onClick={handleNext}>
+              Next<span>👉</span>
+            </Button>
           </div>
         </div>
       )}
@@ -69,14 +59,23 @@ function Steps() {
   );
 }
 
-function Button({ textColor, bgColor, onClick, text, emoji }) {
+function StepMessage({ step, children }) {
+  return (
+    <div className='message'>
+      <h3>Step {step}:</h3>
+      {children}
+    </div>
+  );
+}
+
+// 'children' => es un prop que todos los componentes de React reciben por defecto y es valor de lo que haya entre los dos tags del componente (ej: <Button>Hola</Button>)
+function Button({ textColor, bgColor, onClick, children }) {
   return (
     <button
-      style={{ backgroundColor: `${bgColor}`, color: `${textColor}` }}
+      style={{ backgroundColor: bgColor, color: textColor }}
       onClick={onClick}
     >
-      {text}
-      <span>{emoji}</span>
+      {children}
     </button>
   );
 }
