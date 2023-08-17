@@ -23,6 +23,7 @@ function Logo() {
 function Form() {
   const [description, setDescription] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [items, setItems] = useState([]);
 
   function handleSubmit(e) {
     //Prevenimos que se recargue la pagina
@@ -32,9 +33,19 @@ function Form() {
 
     const newItem = { description, quantity, packed: false, id: Date.now() };
 
+    handleAddItems(newItem);
+
     //Devolvemos a su estado inicial el formulario
     setDescription('');
     setQuantity(1);
+  }
+
+  function handleAddItems(item) {
+    // No podemos usar .push porque React no lo permite, la forma de añadir algo a un array ya existente
+    // es creando uno nuevo a partir del anterior. En este caso:
+    // - items: es el array con todos los item
+    // - item: es el nuevo item que pasamos
+    setItems((items) => [...items, item]);
   }
 
   return (
