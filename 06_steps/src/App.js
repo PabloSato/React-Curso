@@ -7,6 +7,15 @@ const messages = [
 ];
 
 export default function App() {
+  return (
+    <div>
+      <Steps />
+      {/* <Steps /> */}
+    </div>
+  );
+}
+
+function Steps() {
   //useState acepta un parámetro que representa el valor por defecto y devuelve el valor y la función para actualizarlo
   const [step, setStep] = useState(1);
   const [isOpen, setIsOpen] = useState(true);
