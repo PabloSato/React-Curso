@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import StarRating from './StarRating';
 
 const tempMovieData = [
   {
@@ -53,12 +54,20 @@ export const average = (arr) =>
 const API_KEY = 'fd6c39f';
 
 export default function App() {
+  const [query, setQuery] = useState('');
   const [movies, setMovies] = useState([]);
   const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  // const query = 'interstellar';
-  const query = 'sdkfajk';
+  const [selectedId, setSelectedId] = useState(null);
+
+  function handleSelectMovie(id) {
+    setSelectedId((selectedId) => (id === selectedId ? null : id));
+  }
+
+  function handleCloseMovie() {
+    setSelectedId(null);
+  }
 
   // useEffect no devuelve información, por lo que no se guarda en ninguna variable
   // Le pasamos como segundo parámetro un array vacío ([]) para decir que solo se ejecute con la primera renderización del componente
@@ -71,38 +80,52 @@ export default function App() {
   // -------- FORMA CORRECTA --------------
   // Hay que meter la función async en otra, ya que yseEffect NO PUEDE devolver una promesa
   // Hay que llamar a la función async (fetchMovies) para ejecutarla
+  // useEffect se renderiza DESPUÉS del componente se haya renderizado
+  // Si no le pasamos el array de dependencias, useEffect se re-renderiza con cada nueva renderización del componente
 
-  useEffect(function () {
-    async function fetchMovies() {
-      try {
-        setIsLoading(true);
-        const res = await fetch(
-          `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
-        );
-        // -- Handle Connection Errors --
-        if (!res.ok)
-          throw new Error('Something went wrong with fetching movies');
-        const data = await res.json();
-        // -- Handle Not Found Errors --
-        if (data.Response === 'False') throw new Error(data.Error);
-        // -- Set the data fetch
-        setMovies(data.Search);
-      } catch (err) {
-        console.error(err.message);
-        setError(err.message);
-      } finally {
-        // Esto se ejecuta SIEMPRE
-        setIsLoading(false);
+  useEffect(
+    function () {
+      async function fetchMovies() {
+        try {
+          setIsLoading(true);
+          setError('');
+          const res = await fetch(
+            `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
+          );
+          // -- Handle Connection Errors --
+          if (!res.ok)
+            throw new Error('Something went wrong with fetching movies');
+          const data = await res.json();
+          // -- Handle Not Found Errors --
+          if (data.Response === 'False') throw new Error(data.Error);
+          // -- Set the data fetch
+          setMovies(data.Search);
+        } catch (err) {
+          console.error(err.message);
+          setError(err.message);
+        } finally {
+          // Esto se ejecuta SIEMPRE
+          setIsLoading(false);
+        }
       }
-    }
-    // Llamamos a la función para ejecutarla
-    fetchMovies();
-  }, []);
+
+      // Si NO estmos buscando peliculas, que no haga el fetch
+      if (query.length < 2) {
+        setMovies([]);
+        setError('');
+        return;
+      }
+      // Llamamos a la función para ejecutarla
+      fetchMovies();
+    },
+    [query]
+    //Tenemos que pasarle el query en el array de dependencias para que pueda ejecutar su llamada dentro del useEffect
+  );
 
   return (
     <>
       <NavBar>
-        <Search />
+        <Search query={query} setQuery={setQuery} />
         <NumResults movies={movies} />
       </NavBar>
       <Main>
@@ -119,12 +142,23 @@ export default function App() {
         <Box>
           {/* {isLoading ? <Loader /> : <MovieList movies={movies} />} */}
           {isLoading && <Loader />}
-          {!isLoading && !error && <MovieList movies={movies} />}
+          {!isLoading && !error && (
+            <MovieList movies={movies} onSelecteMovie={handleSelectMovie} />
+          )}
           {error && <ErrorMessage message={error} />}
         </Box>
         <Box>
-          <WatchSummary watched={watched} />
-          <WatchedMovieList watched={watched} />
+          {selectedId ? (
+            <MovieDetails
+              selectedId={selectedId}
+              onCloseMovie={handleCloseMovie}
+            />
+          ) : (
+            <>
+              <WatchSummary watched={watched} />
+              <WatchedMovieList watched={watched} />
+            </>
+          )}
         </Box>
       </Main>
     </>
@@ -149,19 +183,23 @@ function Box({ children }) {
   );
 }
 
-function MovieList({ movies }) {
+function MovieList({ movies, onSelecteMovie, onCloseMovie }) {
   return (
-    <ul className='list'>
+    <ul className='list list-movies'>
       {movies?.map((movie) => (
-        <Movie movie={movie} key={movie.imdbID} />
+        <Movie
+          movie={movie}
+          key={movie.imdbID}
+          onSelecteMovie={onSelecteMovie}
+        />
       ))}
     </ul>
   );
 }
 
-function Movie({ movie }) {
+function Movie({ movie, onSelecteMovie }) {
   return (
-    <li>
+    <li onClick={() => onSelecteMovie(movie.imdbID)}>
       <img src={movie.Poster} alt={`${movie.Title} poster`} />
       <h3>{movie.Title}</h3>
       <div>
@@ -171,6 +209,82 @@ function Movie({ movie }) {
         </p>
       </div>
     </li>
+  );
+}
+
+function MovieDetails({ selectedId, onCloseMovie }) {
+  const [movie, setMovie] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  //Destructuramos la data para renombrar los campos como queramos nosotros
+  const {
+    Title: title,
+    Year: year,
+    Poster: poster,
+    Runtime: runtime,
+    imdbRating,
+    Plot: plot,
+    Released: released,
+    Actors: actors,
+    Director: director,
+    Genre: genre,
+  } = movie;
+
+  // Con este useEffect cargamos los detalles de la pelicula seleccionada
+  useEffect(
+    function () {
+      async function getMovieDetails() {
+        setIsLoading(true);
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${API_KEY}&i=${selectedId}`
+        );
+
+        const data = await res.json();
+        setMovie(data);
+        setIsLoading(false);
+      }
+      getMovieDetails();
+    },
+    [selectedId]
+  );
+
+  return (
+    <div className='details'>
+      {isLoading ? (
+        <Loader />
+      ) : (
+        <>
+          <header>
+            <button className='btn-back' onClick={onCloseMovie}>
+              &larr;
+            </button>
+            <img src={poster} alt={`Poster of ${title} movie`} />
+            <div className='details-overview'>
+              <h2>{title}</h2>
+              <p>
+                {released} &bull; {runtime}
+              </p>
+              <p>{genre}</p>
+              <p>
+                <span>⭐️</span>
+                {imdbRating} IMDb rating
+              </p>
+            </div>
+          </header>
+
+          <section>
+            <div className='rating'>
+              <StarRating maxRating={10} size={24} />
+            </div>
+            <p>
+              <em>{plot}</em>
+            </p>
+            <p>Starring {actors}</p>
+            <p>Directed by {director}</p>
+          </section>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -277,9 +391,7 @@ function NumResults({ movies }) {
   );
 }
 
-function Search() {
-  const [query, setQuery] = useState('');
-
+function Search({ query, setQuery }) {
   return (
     <input
       className='search'
