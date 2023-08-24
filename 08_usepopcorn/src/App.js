@@ -55,6 +55,10 @@ const API_KEY = 'fd6c39f';
 export default function App() {
   const [movies, setMovies] = useState([]);
   const [watched, setWatched] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  // const query = 'interstellar';
+  const query = 'sdkfajk';
 
   // useEffect no devuelve información, por lo que no se guarda en ninguna variable
   // Le pasamos como segundo parámetro un array vacío ([]) para decir que solo se ejecute con la primera renderización del componente
@@ -67,16 +71,29 @@ export default function App() {
   // -------- FORMA CORRECTA --------------
   // Hay que meter la función async en otra, ya que yseEffect NO PUEDE devolver una promesa
   // Hay que llamar a la función async (fetchMovies) para ejecutarla
-  const query = 'interstellar';
 
   useEffect(function () {
     async function fetchMovies() {
-      const res = await fetch(
-        `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
-      );
-      const data = await res.json();
-
-      setMovies(data.Search);
+      try {
+        setIsLoading(true);
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
+        );
+        // -- Handle Connection Errors --
+        if (!res.ok)
+          throw new Error('Something went wrong with fetching movies');
+        const data = await res.json();
+        // -- Handle Not Found Errors --
+        if (data.Response === 'False') throw new Error(data.Error);
+        // -- Set the data fetch
+        setMovies(data.Search);
+      } catch (err) {
+        console.error(err.message);
+        setError(err.message);
+      } finally {
+        // Esto se ejecuta SIEMPRE
+        setIsLoading(false);
+      }
     }
     // Llamamos a la función para ejecutarla
     fetchMovies();
@@ -100,7 +117,10 @@ export default function App() {
           }
         /> */}
         <Box>
-          <MovieList movies={movies} />
+          {/* {isLoading ? <Loader /> : <MovieList movies={movies} />} */}
+          {isLoading && <Loader />}
+          {!isLoading && !error && <MovieList movies={movies} />}
+          {error && <ErrorMessage message={error} />}
         </Box>
         <Box>
           <WatchSummary watched={watched} />
@@ -214,6 +234,18 @@ function WatchedMovie({ movie }) {
         </p>
       </div>
     </li>
+  );
+}
+
+function Loader() {
+  return <p className='loader'>Loading...</p>;
+}
+
+function ErrorMessage({ message }) {
+  return (
+    <p className='error'>
+      <span>⛔️</span> {message}
+    </p>
   );
 }
 
