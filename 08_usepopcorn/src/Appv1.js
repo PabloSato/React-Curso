@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const tempMovieData = [
   {
@@ -50,42 +50,13 @@ export const tempWatchedData = [
 export const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
-const API_KEY = 'fd6c39f';
-
 export default function App() {
-  const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
-
-  // useEffect no devuelve información, por lo que no se guarda en ninguna variable
-  // Le pasamos como segundo parámetro un array vacío ([]) para decir que solo se ejecute con la primera renderización del componente
-  // EL setMovies SOLO lo podemos poner dentro del fetch() dentro del useEffect porque si no ejecuta un loop infinito de peticiones y renderizaciones
-  // useEffect(function () {
-  //   fetch(`http://www.omdbapi.com/?apikey=${API_KEY}&s=interstellar`).then(
-  //     (res) => res.json().then((data) => setMovies(data.Search))
-  //   );
-  // }, []);
-  // -------- FORMA CORRECTA --------------
-  // Hay que meter la función async en otra, ya que yseEffect NO PUEDE devolver una promesa
-  // Hay que llamar a la función async (fetchMovies) para ejecutarla
-  const query = 'interstellar';
-
-  useEffect(function () {
-    async function fetchMovies() {
-      const res = await fetch(
-        `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`
-      );
-      const data = await res.json();
-
-      setMovies(data.Search);
-    }
-    // Llamamos a la función para ejecutarla
-    fetchMovies();
-  }, []);
+  const [movies, setMovies] = useState(tempMovieData);
+  const [watched, setWatched] = useState(tempWatchedData);
 
   return (
     <>
       <NavBar>
-        <Search />
         <NumResults movies={movies} />
       </NavBar>
       <Main>
@@ -223,6 +194,7 @@ function NavBar({ children }) {
   return (
     <nav className='nav-bar'>
       <Logo />
+      <Search />
       {children}
     </nav>
   );
