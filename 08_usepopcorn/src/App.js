@@ -253,6 +253,20 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
     Genre: genre,
   } = movie;
 
+  function handleAdd() {
+    const newWatchedMovie = {
+      imdbID: selectedId,
+      title,
+      year,
+      poster,
+      imdbRating: Number(imdbRating),
+      runtime: Number(runtime.split(' ').at(0)),
+      userRating,
+    };
+    onAddWatched(newWatchedMovie);
+    onCloseMovie();
+  }
+
   // Con este useEffect cargamos los detalles de la pelicula seleccionada
   useEffect(
     function () {
@@ -271,19 +285,18 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
     [selectedId]
   );
 
-  function handleAdd() {
-    const newWatchedMovie = {
-      imdbID: selectedId,
-      title,
-      year,
-      poster,
-      imdbRating: Number(imdbRating),
-      runtime: Number(runtime.split(' ').at(0)),
-      userRating,
-    };
-    onAddWatched(newWatchedMovie);
-    onCloseMovie();
-  }
+  useEffect(
+    function () {
+      if (!title) return;
+      document.title = `Movie | ${title}`;
+
+      // Función cleanup => para borrar el seide-effect al desmontar el componente (resetea el titulo de la pgina)
+      return function () {
+        document.title = 'usePopcorn';
+      };
+    },
+    [title]
+  );
 
   return (
     <div className='details'>
