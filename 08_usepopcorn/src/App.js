@@ -54,9 +54,9 @@ export const average = (arr) =>
 const API_KEY = 'fd6c39f';
 
 export default function App() {
-  const [query, setQuery] = useState('interstellar');
+  const [query, setQuery] = useState('');
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState(tempWatchedData);
+  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -115,9 +115,11 @@ export default function App() {
           setMovies(data.Search);
           setError('');
         } catch (err) {
-          console.error(err.message);
           // -- Evitamos el 'user aborted' error para que siga pintando la data del fetch
-          if (err.name !== 'AbortError') setError(err.message);
+          if (err.name !== 'AbortError') {
+            console.error(err.message);
+            setError(err.message);
+          }
         } finally {
           // Esto se ejecuta SIEMPRE
           setIsLoading(false);
@@ -130,6 +132,8 @@ export default function App() {
         setError('');
         return;
       }
+      // Cerramos la pelicula que tengamos abierta
+      handleCloseMovie();
       // Llamamos a la función para ejecutarla
       fetchMovies();
 
@@ -309,6 +313,21 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
       };
     },
     [title]
+  );
+
+  useEffect(
+    function () {
+      function callback(e) {
+        if (e.code === 'Escape') onCloseMovie();
+      }
+      document.addEventListener('keydown', callback);
+      // Cada vez que abramos una movie, se añade el eventListener a ella, podemos acabar teniendo decenas de eventos, ESO NO LO QUEREMOS
+      // Por ello necesitamos una función cleanup que elimine el eventListener ya que podríamos acabar con un problema de memoria
+      return function () {
+        document.removeEventListener('keydown', callback);
+      };
+    },
+    [onCloseMovie]
   );
 
   return (
