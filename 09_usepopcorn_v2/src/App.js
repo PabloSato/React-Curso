@@ -1,53 +1,6 @@
 import { useEffect, useState } from 'react';
 import StarRating from './StarRating';
 
-const tempMovieData = [
-  {
-    imdbID: 'tt1375666',
-    Title: 'Inception',
-    Year: '2010',
-    Poster:
-      'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg',
-  },
-  {
-    imdbID: 'tt0133093',
-    Title: 'The Matrix',
-    Year: '1999',
-    Poster:
-      'https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDllZjNkYzNjNTc4L2ltYWdlXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg',
-  },
-  {
-    imdbID: 'tt6751668',
-    Title: 'Parasite',
-    Year: '2019',
-    Poster:
-      'https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_SX300.jpg',
-  },
-];
-
-export const tempWatchedData = [
-  {
-    imdbID: 'tt1375666',
-    title: 'Inception',
-    year: '2010',
-    poster:
-      'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg',
-    runtime: 148,
-    imdbRating: 8.8,
-    userRating: 10,
-  },
-  {
-    imdbID: 'tt0088763',
-    title: 'Back to the Future',
-    year: '1985',
-    poster:
-      'https://m.media-amazon.com/images/M/MV5BZmU0M2Y1OGUtZjIxNi00ZjBkLTg1MjgtOWIyNThiZWIwYjRiXkEyXkFqcGdeQXVyMTQxNzMzNDI@._V1_SX300.jpg',
-    runtime: 116,
-    imdbRating: 8.5,
-    userRating: 9,
-  },
-];
-
 export const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
@@ -56,10 +9,15 @@ const API_KEY = 'fd6c39f';
 export default function App() {
   const [query, setQuery] = useState('');
   const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+  const [watched, setWatched] = useState(function () {
+    // Podemos pasar una función anónima (sin argumentos) como valor inicial
+    // desde dónde podemos leer el valor del localStorage
+    const storedMovies = localStorage.getItem('watched');
+    return JSON.parse(storedMovies);
+  });
 
   function handleSelectMovie(id) {
     setSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -71,26 +29,18 @@ export default function App() {
 
   function handleAddWatched(movie) {
     setWatched((watched) => [...watched, movie]);
+
+    // LO MEJOR ES HACERLO EN EL useEffect
+    // Guardamos en LocalStorage a lista de peliculas añadidas para persistirlas
+    // Como el setWatched es ASINCRONO, debemos de hacer lo mismo que en el set, para añadirlo
+    // En localStorage se guardan como pair=>value de strings, hay que convertirlo a string
+    // localStorage.setItem('watched', JSON.stringify([...watched, movie]));
   }
 
   function handleDeleteWatched(id) {
     // Filtramos el array de watched y dejamos solo aquellas cuyo id sea DISTINTO al id que recibimos
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
-
-  // useEffect no devuelve información, por lo que no se guarda en ninguna variable
-  // Le pasamos como segundo parámetro un array vacío ([]) para decir que solo se ejecute con la primera renderización del componente
-  // EL setMovies SOLO lo podemos poner dentro del fetch() dentro del useEffect porque si no ejecuta un loop infinito de peticiones y renderizaciones
-  // useEffect(function () {
-  //   fetch(`http://www.omdbapi.com/?apikey=${API_KEY}&s=interstellar`).then(
-  //     (res) => res.json().then((data) => setMovies(data.Search))
-  //   );
-  // }, []);
-  // -------- FORMA CORRECTA --------------
-  // Hay que meter la función async en otra, ya que yseEffect NO PUEDE devolver una promesa
-  // Hay que llamar a la función async (fetchMovies) para ejecutarla
-  // useEffect se renderiza DESPUÉS del componente se haya renderizado
-  // Si no le pasamos el array de dependencias, useEffect se re-renderiza con cada nueva renderización del componente
 
   useEffect(
     function () {
@@ -148,6 +98,16 @@ export default function App() {
     //Tenemos que pasarle el query en el array de dependencias para que pueda ejecutar su llamada dentro del useEffect
   );
 
+  useEffect(
+    function () {
+      // Este useEffect solo se ejecuta después de que se haya actualziado el useState
+      // por lo que podemos usar directamente el array watched
+      // Este useEffect tamnbén se encarga de actualizar el valor de watched(cuando eliminamos de la lista)
+      localStorage.setItem('watched', JSON.stringify(watched));
+    },
+    [watched]
+  );
+
   return (
     <>
       <NavBar>
@@ -155,18 +115,7 @@ export default function App() {
         <NumResults movies={movies} />
       </NavBar>
       <Main>
-        {/* OTRA FORMA DE HACERLO */}
-        {/* <Box element={<MovieList movies={movies} />} />
-        <Box
-          element={
-            <>
-              <WatchSummary watched={watched} />
-              <WatchedMovieList watched={watched} />
-            </>
-          }
-        /> */}
         <Box>
-          {/* {isLoading ? <Loader /> : <MovieList movies={movies} />} */}
           {isLoading && <Loader />}
           {!isLoading && !error && (
             <MovieList movies={movies} onSelecteMovie={handleSelectMovie} />
@@ -248,9 +197,6 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
   const [isLoading, setIsLoading] = useState(false);
   const [userRating, setUserRating] = useState('');
 
-  // Comprobamos si ya tenemos la pelicula en el array de los watched
-  // Primero convertimos con map() en un array de IDs
-  // Después comprobamos con includes() si selectedId está incluido en ese array
   const isWatched = watched.map((movie) => movie.imdbID).includes(selectedId);
   const watchedUserRating = watched.find(
     (movie) => movie.imdbID === selectedId
