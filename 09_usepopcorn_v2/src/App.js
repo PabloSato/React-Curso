@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import StarRating from './StarRating';
+import { useMovies } from './useMovies';
+import { useLocalStorageState } from './useLocalStorageState';
+import { useKey } from './useKey';
 
 export const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -8,16 +11,11 @@ const API_KEY = 'fd6c39f';
 
 export default function App() {
   const [query, setQuery] = useState('');
-  const [movies, setMovies] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
-  const [watched, setWatched] = useState(function () {
-    // Podemos pasar una función anónima (sin argumentos) como valor inicial
-    // desde dónde podemos leer el valor del localStorage
-    const storedMovies = localStorage.getItem('watched');
-    return JSON.parse(storedMovies);
-  });
+  // Usamos un custom Hook useMovies
+  const { movies, isLoading, error } = useMovies(query, handleCloseMovie);
+  // Usamos otro custom Hook
+  const [watched, setWatched] = useLocalStorageState([], 'watched');
 
   function handleSelectMovie(id) {
     setSelectedId((selectedId) => (id === selectedId ? null : id));
@@ -29,84 +27,12 @@ export default function App() {
 
   function handleAddWatched(movie) {
     setWatched((watched) => [...watched, movie]);
-
-    // LO MEJOR ES HACERLO EN EL useEffect
-    // Guardamos en LocalStorage a lista de peliculas añadidas para persistirlas
-    // Como el setWatched es ASINCRONO, debemos de hacer lo mismo que en el set, para añadirlo
-    // En localStorage se guardan como pair=>value de strings, hay que convertirlo a string
-    // localStorage.setItem('watched', JSON.stringify([...watched, movie]));
   }
 
   function handleDeleteWatched(id) {
     // Filtramos el array de watched y dejamos solo aquellas cuyo id sea DISTINTO al id que recibimos
     setWatched((watched) => watched.filter((movie) => movie.imdbID !== id));
   }
-
-  useEffect(
-    function () {
-      // Controlamos las peticiones fetch para que solo se ejecute la última y no todas las intermedias mientras escribimos en el buscador
-      // Usamos el API del navegador => AbortController no tiene nada que ver con React (OJO!!)
-      const controller = new AbortController();
-      async function fetchMovies() {
-        try {
-          setIsLoading(true);
-          setError('');
-          const res = await fetch(
-            `http://www.omdbapi.com/?apikey=${API_KEY}&s=${query}`,
-            { signal: controller.signal }
-          );
-          // -- Handle Connection Errors --
-          if (!res.ok)
-            throw new Error('Something went wrong with fetching movies');
-          const data = await res.json();
-          // -- Handle Not Found Errors --
-          if (data.Response === 'False') throw new Error(data.Error);
-          // -- Set the data fetch
-          setMovies(data.Search);
-          setError('');
-        } catch (err) {
-          // -- Evitamos el 'user aborted' error para que siga pintando la data del fetch
-          if (err.name !== 'AbortError') {
-            console.error(err.message);
-            setError(err.message);
-          }
-        } finally {
-          // Esto se ejecuta SIEMPRE
-          setIsLoading(false);
-        }
-      }
-
-      // Si NO estmos buscando peliculas, que no haga el fetch
-      if (query.length < 2) {
-        setMovies([]);
-        setError('');
-        return;
-      }
-      // Cerramos la pelicula que tengamos abierta
-      handleCloseMovie();
-      // Llamamos a la función para ejecutarla
-      fetchMovies();
-
-      // Add cleanup function
-      return function () {
-        // Cada vez que añadimos una nueva letra en el buscador, el componente se rerenderiza, lo que ejecuta esta cleanup function
-        //y aborta el fetch que esté en ejecución
-        controller.abort();
-      };
-    },
-    [query]
-    //Tenemos que pasarle el query en el array de dependencias para que pueda ejecutar su llamada dentro del useEffect
-  );
-
-  useEffect(
-    function () {
-      // Este useEffect solo se ejecuta después de que se haya actualziado el useState
-      // por lo que podemos usar directamente el array watched
-      // Este useEffect tamnbén se encarga de actualizar el valor de watched(cuando eliminamos de la lista)
-      localStorage.setItem('watched', JSON.stringify(watched));
-    },
-    [watched]
-  );
 
   return (
     <>
@@ -273,20 +199,8 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
     [title]
   );
 
-  useEffect(
-    function () {
-      function callback(e) {
-        if (e.code === 'Escape') onCloseMovie();
-      }
-      document.addEventListener('keydown', callback);
-      // Cada vez que abramos una movie, se añade el eventListener a ella, podemos acabar teniendo decenas de eventos, ESO NO LO QUEREMOS
-      // Por ello necesitamos una función cleanup que elimine el eventListener ya que podríamos acabar con un problema de memoria
-      return function () {
-        document.removeEventListener('keydown', callback);
-      };
-    },
-    [onCloseMovie]
-  );
+  // Usamos custom hook
+  useKey('Escape', onCloseMovie);
 
   return (
     <div className='details'>
@@ -464,29 +378,12 @@ function Search({ query, setQuery }) {
   // Lo relacionamos con el elemento DOM pasando la propiedad ref
   const inputEl = useRef(null);
 
-  useEffect(
-    function () {
-      // Vamos a añadir la feature que cuando se pulse (en cualquier lugar de la web) el boton ENTER, se aplique el focus sobre el input del Search
-      function callback(e) {
-        // Comprobamos si ya está en focus el input del Search, en ese caso no hacemos nada
-        if (document.activeElement === inputEl.current) return;
-        if (e.code === 'Enter') {
-          inputEl.current.focus();
-          setQuery(''); // => borramos el valor que haya en el Search
-        }
-      }
-      document.addEventListener('keydown', callback);
-
-      return () => document.addEventListener('keydown', callback);
-
-      // El ref solo se añade al elemento DOM una vez que se ha cargado este, por lo que solo podemos
-      // acceder/user el ref desde el useEffect hook
-      // inputEl.current => es el elemento DOM al que está añadido
-      // De esta forma podemos aplicar el focus() (cuando se cargue la pagina estará "enfocado" en el input del Search)
-      // inputEl.current.focus(); // => nos lo llevamos a la función callback
-    },
-    [setQuery] // => aunque no se usa neesariamente en el useEffect, hay que pasarla
-  );
+  // Reusamos el custom hook
+  useKey('Enter', function () {
+    if (document.activeElement === inputEl.current) return;
+    inputEl.current.focus();
+    setQuery(''); // => borramos el valor que haya en el Search
+  });
 
   return (
     <input
