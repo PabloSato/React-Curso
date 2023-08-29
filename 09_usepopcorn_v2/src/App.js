@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import StarRating from './StarRating';
 
 export const average = (arr) =>
@@ -202,6 +202,17 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
     (movie) => movie.imdbID === selectedId
   )?.userRating;
 
+  // Vamos a usar este Ref para almacenar cuantas veces el usuario clica sobre el rating antes de submit
+  const countRef = useRef(0);
+
+  useEffect(
+    function () {
+      // Sumamos de uno en uno
+      if (userRating) countRef.current++;
+    },
+    [userRating]
+  );
+
   //Destructuramos la data para renombrar los campos como queramos nosotros
   const {
     Title: title,
@@ -225,6 +236,7 @@ function MovieDetails({ selectedId, watched, onCloseMovie, onAddWatched }) {
       imdbRating: Number(imdbRating),
       runtime: Number(runtime.split(' ').at(0)),
       userRating,
+      countRatingDecisions: countRef.current, // No pintamos esto de momento, pero lo almacenamos
     };
     onAddWatched(newWatchedMovie);
     onCloseMovie();
@@ -448,6 +460,34 @@ function NumResults({ movies }) {
 }
 
 function Search({ query, setQuery }) {
+  // Normalmente como valor inicial siempre es null (ya que hablamos de añadir luego elementos DOM)
+  // Lo relacionamos con el elemento DOM pasando la propiedad ref
+  const inputEl = useRef(null);
+
+  useEffect(
+    function () {
+      // Vamos a añadir la feature que cuando se pulse (en cualquier lugar de la web) el boton ENTER, se aplique el focus sobre el input del Search
+      function callback(e) {
+        // Comprobamos si ya está en focus el input del Search, en ese caso no hacemos nada
+        if (document.activeElement === inputEl.current) return;
+        if (e.code === 'Enter') {
+          inputEl.current.focus();
+          setQuery(''); // => borramos el valor que haya en el Search
+        }
+      }
+      document.addEventListener('keydown', callback);
+
+      return () => document.addEventListener('keydown', callback);
+
+      // El ref solo se añade al elemento DOM una vez que se ha cargado este, por lo que solo podemos
+      // acceder/user el ref desde el useEffect hook
+      // inputEl.current => es el elemento DOM al que está añadido
+      // De esta forma podemos aplicar el focus() (cuando se cargue la pagina estará "enfocado" en el input del Search)
+      // inputEl.current.focus(); // => nos lo llevamos a la función callback
+    },
+    [setQuery] // => aunque no se usa neesariamente en el useEffect, hay que pasarla
+  );
+
   return (
     <input
       className='search'
@@ -455,6 +495,7 @@ function Search({ query, setQuery }) {
       placeholder='Search movies...'
       value={query}
       onChange={(e) => setQuery(e.target.value)}
+      ref={inputEl}
     />
   );
 }
