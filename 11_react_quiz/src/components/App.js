@@ -1,4 +1,5 @@
 import { useEffect, useReducer } from 'react';
+// ---- COMPONENTS ----
 import Header from './Header';
 import Main from './Main';
 import Loader from './Loader';
@@ -6,6 +7,7 @@ import Error from './Error';
 import StartScreen from './StartScreen';
 import Question from './Question';
 import NextButton from './NextButton';
+import Progress from './Progress';
 
 const initialState = {
   questions: [],
@@ -52,8 +54,13 @@ export default function App() {
     reducer,
     initialState
   );
-
+  // Calculamos el número de preguntas
   const numQuestions = questions.length;
+  // Calculamos el máximo de puntos que se puede obtener
+  const maxPossiblePoints = questions.reduce(
+    (prev, cur) => prev + cur.points,
+    0
+  );
 
   useEffect(function () {
     fetch('http://localhost:8000/questions')
@@ -73,6 +80,13 @@ export default function App() {
         )}
         {status === 'active' && (
           <>
+            <Progress
+              index={index}
+              numQuestions={numQuestions}
+              points={points}
+              maxPossiblePoints={maxPossiblePoints}
+              answer={answer}
+            />
             <Question
               question={questions[index]}
               dispatch={dispatch}
